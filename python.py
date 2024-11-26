@@ -13,97 +13,57 @@ import pandas as pd
 
 # Enhanced safety configuration
 ALLOWED_MODULES = [
-    # Standard Library and Scientific Libraries
+    # Standard Library
     'math', 're', 'random', 'time', 'datetime', 'collections',
     'itertools', 'functools', 'statistics',
     'typing', 'operator', 'json', 'csv',
+
+    # Scientific and Data Libraries
     'numpy', 'pandas', 'scipy', 'sklearn',
     'matplotlib', 'matplotlib.pyplot', 'seaborn', 'plotly',
     'torch', 'tensorflow', 'keras',
     'sympy', 'networkx', 'pillow',
+
+    # Other Popular Libraries
     'requests', 'beautifulsoup4', 'nltk',
     'pytz', 'emoji', 'pytest'
 ]
 
-# Set page configuration
-st.set_page_config(
-    page_title="Python Code Playground",
-    page_icon="🐍",
-    layout="wide"
-)
+st.set_page_config(page_title="Python Playground with Charts", page_icon="📊")
 
-# Custom CSS for modern, clean design
+# Custom CSS for enhanced styling
 st.markdown("""
     <style>
-    /* Global Styling */
     .stApp {
-        background-color: #f0f2f6;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        background-color: #f4f6f9;
+        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
     }
-
-    /* Sidebar Styling */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-
-    /* Title Styling */
     .title {
-        font-size: 2.5em;
-        font-weight: 800;
-        text-align: center;
         color: #2c3e50;
-        margin-bottom: 20px;
+        text-align: center;
+        font-weight: 700;
         background: linear-gradient(90deg, #3498db, #2980b9);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-
-    /* Code Area Styling */
     .stTextArea textarea {
         font-family: 'Fira Code', monospace;
         background-color: #f8f9fa;
-        border-radius: 8px;
-        border: 1px solid #e0e4e8;
     }
-
-    /* Button Styling */
     .stButton>button {
         background-color: #3498db;
         color: white;
-        border-radius: 8px;
-        font-weight: 600;
+        border-radius: 6px;
         transition: all 0.3s ease;
-        border: none;
-        padding: 10px 20px;
     }
-    .stButton>button:hover {
-        background-color: #2980b9;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-
-    /* Output Container */
     .output-container {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 20px;
+        background-color: #f1f3f5;
+        border-radius: 8px;
+        padding: 15px;
         margin-top: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     .output-error {
         color: #e74c3c;
-        background-color: #fef0f0;
-        border-radius: 8px;
-        padding: 10px;
-    }
-
-    /* Figur Styling */
-    .stPlotlyChart {
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -238,6 +198,12 @@ def is_safe_code(code: str) -> Tuple[bool, str]:
     """
     Enhanced safety check for code execution
     """
+    # Allowed system-level imports and libraries
+    allowed_imports = [
+        'matplotlib', 'numpy', 'pandas', 'seaborn', 'plotly',
+        'scipy', 'sklearn', 'torch', 'tensorflow', 'keras'
+    ]
+
     # Dangerous patterns to block
     unsafe_patterns = [
         r'open\(',  # File operations
@@ -256,8 +222,7 @@ def is_safe_code(code: str) -> Tuple[bool, str]:
 
     disallowed_imports = [
         imp for imp in set(imports + from_imports)
-        if imp not in ['matplotlib', 'numpy', 'pandas', 'seaborn',
-                       'math', 're', 'random', 'time']
+        if imp not in allowed_imports and imp not in ['math', 're', 'random', 'time']
     ]
 
     if disallowed_imports:
@@ -267,132 +232,56 @@ def is_safe_code(code: str) -> Tuple[bool, str]:
 
 
 def main():
-    # Sidebar for customization and information
-    with st.sidebar:
-        st.markdown("## 🐍 Python Playground")
+    st.markdown('<h1 class="title">Python Playground with Charts</h1>', unsafe_allow_html=True)
 
-        # Theme selector
-        theme = st.selectbox("Select Chart Theme", [
-            "Default",
-            "Pastel",
-            "Bright",
-            "Dark"
-        ])
-
-        # Chart size selector
-        chart_size = st.slider("Chart Size", 6, 16, 10, step=2)
-
-        # Example templates
-        st.markdown("### Quick Templates")
-        template = st.selectbox("Choose a Template", [
-            "Basic Line Plot",
-            "Scatter Plot",
-            "Bar Chart",
-            "Histogram",
-            "Box Plot"
-        ])
-
-        # Information and help
-        st.markdown("---")
-        st.info("""
-        🚀 Tips:
-        - Use matplotlib/seaborn for plotting
-        - Import numpy, pandas for data
-        - Click 'Run Code' to execute
-        """)
-
-    # Main content
-    st.markdown('<h1 class="title">Python Visualization Playground</h1>', unsafe_allow_html=True)
-
-    # Dynamically set template based on selection
-    default_code = {
-        "Basic Line Plot": """
+    # Code input area with larger height and better styling
+    code = st.text_area(
+        "Enter your Python code:",
+        height=400,
+        help="Write your Python code here. Supports plotting with matplotlib and seaborn.",
+        value="""# Example: Creating different types of charts
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
+import pandas as pd
 
+# Line Plot
+plt.figure(figsize=(10, 4))
 x = np.linspace(0, 10, 100)
-plt.figure(figsize=(10, 6))
 plt.plot(x, np.sin(x), label='Sin Wave')
 plt.plot(x, np.cos(x), label='Cos Wave')
 plt.title('Trigonometric Functions')
 plt.xlabel('X-axis')
 plt.ylabel('Y-axis')
 plt.legend()
-""",
-        "Scatter Plot": """
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 
+# Scatter Plot
+plt.figure(figsize=(10, 4))
 np.random.seed(42)
 data = pd.DataFrame({
     'x': np.random.randn(100),
     'y': np.random.randn(100),
     'category': np.random.choice(['A', 'B', 'C'], 100)
 })
-
-plt.figure(figsize=(10, 6))
-for cat in data['category'].unique():
-    subset = data[data['category'] == cat]
-    plt.scatter(subset['x'], subset['y'], label=cat, alpha=0.7)
+sns.scatterplot(data=data, x='x', y='y', hue='category')
 plt.title('Scatter Plot with Categories')
-plt.xlabel('X-axis')
-plt.ylabel('Y-axis')
-plt.legend()
-""",
-        "Bar Chart": """
-import matplotlib.pyplot as plt
-import numpy as np
 
+# Bar Plot
+plt.figure(figsize=(10, 4))
 categories = ['Category A', 'Category B', 'Category C', 'Category D']
 values = [23, 45, 56, 78]
-
-plt.figure(figsize=(10, 6))
-plt.bar(categories, values, color='skyblue', edgecolor='navy')
-plt.title('Bar Chart of Categories')
+plt.bar(categories, values)
+plt.title('Bar Chart')
 plt.xlabel('Categories')
 plt.ylabel('Values')
 plt.xticks(rotation=45)
-""",
-        "Histogram": """
-import matplotlib.pyplot as plt
-import numpy as np
 
-np.random.seed(42)
-data = np.random.normal(0, 1, 1000)
-
-plt.figure(figsize=(10, 6))
-plt.hist(data, bins=30, edgecolor='black')
-plt.title('Normal Distribution Histogram')
-plt.xlabel('Values')
-plt.ylabel('Frequency')
-""",
-        "Box Plot": """
-import matplotlib.pyplot as plt
-import numpy as np
-
-np.random.seed(42)
-data1 = np.random.normal(0, 1, 100)
-data2 = np.random.normal(1, 1.2, 100)
-data3 = np.random.normal(-1, 1.5, 100)
-
-plt.figure(figsize=(10, 6))
-plt.boxplot([data1, data2, data3], labels=['Group A', 'Group B', 'Group C'])
-plt.title('Box Plot of Different Groups')
-plt.ylabel('Values')
+plt.tight_layout()
 """
-    }
-
-    # Code input area
-    code = st.text_area(
-        "Enter your Python code:",
-        height=400,
-        value=default_code[template],
-        help="Write your Python visualization code here"
     )
 
     # Run Code Button
-    if st.button("Run Code", key="run_code"):
+    if st.button("Run Code"):
         # First, check code safety
         is_safe, safety_message = is_safe_code(code)
 
@@ -412,11 +301,9 @@ plt.ylabel('Values')
                     st.code(output, language='python')
 
                 # Display figures
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    for fig in figures:
-                        st.pyplot(fig)
-                        plt.close(fig)  # Close the figure to prevent memory leaks
+                for fig in figures:
+                    st.pyplot(fig)
+                    plt.close(fig)  # Close the figure to prevent memory leaks
             else:
                 st.error("❌ Code Execution Failed:")
                 st.markdown(f'<pre class="output-error">{output}</pre>', unsafe_allow_html=True)
