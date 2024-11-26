@@ -5,12 +5,13 @@ import re
 import uuid
 from typing import List, Tuple, Dict
 import traceback
+import importlib
 
 # Enhanced safety configuration
 ALLOWED_MODULES = [
     # Standard Library
     'math', 're', 'random', 'time', 'datetime', 'collections',
-    'itertools', 'functools', 'statistics', 'statistics',
+    'itertools', 'functools', 'statistics',
     'typing', 'operator', 'json', 'csv',
 
     # Scientific and Data Libraries
@@ -26,43 +27,92 @@ ALLOWED_MODULES = [
 
 st.set_page_config(page_title="Python Playground", page_icon="🐍")
 
-# Custom CSS for enhanced styling
+
+# Enhanced Custom CSS for Professional Design
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #f4f6f9;
-        font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
-    }
-    .title {
-        color: #2c3e50;
-        text-align: center;
-        font-weight: 700;
-        background: linear-gradient(90deg, #3498db, #2980b9);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .stTextArea textarea {
-        font-family: 'Fira Code', monospace;
-        background-color: #f8f9fa;
-    }
-    .stButton>button {
-        background-color: #3498db;
-        color: white;
-        border-radius: 6px;
-        transition: all 0.3s ease;
-    }
-    .output-container {
-        background-color: #f1f3f5;
-        border-radius: 8px;
-        padding: 15px;
-        margin-top: 15px;
-    }
-    .output-error {
-        color: #e74c3c;
-    }
+        /* Global Styling */
+        .stApp {
+            background-color: #f4f6f9;
+            font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Title Styling */
+        .title {
+            color: #2c3e50;
+            text-align: center;
+            font-weight: 700;
+            margin-bottom: 20px;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Code Editor Styling */
+        .code-editor {
+            font-family: 'Fira Code', 'Courier New', monospace;
+            background-color: #ffffff;
+            border: 1px solid #e0e4e8;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        /* Syntax Highlighting */
+        .python-keyword {
+            color: #2980b9;
+            font-weight: 600;
+        }
+        .python-builtin {
+            color: #e74c3c;
+        }
+        .python-string {
+            color: #27ae60;
+        }
+        .python-comment {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        /* Button Styling */
+        .stButton>button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .stButton>button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Submitted Code Styling */
+        .submitted-code {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        /* Output Styling */
+        .output-container {
+            background-color: #f1f3f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .output-error {
+            color: #e74c3c;
+        }
     </style>
 """, unsafe_allow_html=True)
-
 
 def safe_execute_code(code: str) -> Tuple[bool, str]:
     """
@@ -82,7 +132,7 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
     sys.stderr = stderr_capture
 
     try:
-        # Enhanced execution context
+        # Enhanced execution context with safe built-ins
         exec_globals = {
             '__builtins__': {
                 'print': print,
@@ -103,10 +153,11 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
             }
         }
 
-        # Dynamically import allowed libraries
+        # Dynamically import allowed libraries with error handling
         for module_name in ALLOWED_MODULES:
             try:
-                exec(f"import {module_name}", exec_globals)
+                module = importlib.import_module(module_name)
+                exec_globals[module_name] = module
             except ImportError:
                 pass
 
