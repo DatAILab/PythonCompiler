@@ -5,6 +5,7 @@ import re
 import uuid
 from typing import List, Tuple, Dict
 import traceback
+import importlib
 
 # Enhanced safety configuration
 ALLOWED_MODULES = [
@@ -15,7 +16,7 @@ ALLOWED_MODULES = [
 
     # Scientific and Data Libraries
     'numpy', 'pandas', 'scipy', 'sklearn',
-    'matplotlib', 'seaborn', 'plotly',
+    'matplotlib', 'matplotlib.pyplot', 'seaborn', 'plotly',
     'torch', 'tensorflow', 'keras',
     'sympy', 'networkx', 'pillow',
 
@@ -25,6 +26,7 @@ ALLOWED_MODULES = [
 ]
 
 st.set_page_config(page_title="Python Playground", page_icon="🐍")
+
 
 # Custom CSS for enhanced styling
 st.markdown("""
@@ -63,7 +65,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
 def safe_execute_code(code: str) -> Tuple[bool, str]:
     """
     Safely execute Python code with comprehensive output and error handling
@@ -82,7 +83,7 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
     sys.stderr = stderr_capture
 
     try:
-        # Create a new dictionary for global namespace
+        # Create a comprehensive global namespace
         exec_globals = {
             '__builtins__': {
                 'print': print,
@@ -105,6 +106,7 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
         # Special handling for imports
         import_statements = []
         code_without_imports = []
+        imported_modules = {}
 
         # Separate import statements from the rest of the code
         for line in code.split('\n'):
@@ -117,14 +119,36 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
         # Execute import statements
         for import_stmt in import_statements:
             try:
-                # Check if imported module is in allowed list
-                module_name = import_stmt.split()[1] if import_stmt.startswith('import ') else import_stmt.split()[1]
+                # Handle different import formats
+                if import_stmt.startswith('import '):
+                    # Simple import: import numpy as np
+                    module_name = import_stmt.split()[1]
+                    alias = module_name
 
-                if module_name in ALLOWED_MODULES or any(
-                        module_name.startswith(allowed) for allowed in ALLOWED_MODULES):
-                    exec(import_stmt, exec_globals)
-                else:
-                    raise ImportError(f"Module {module_name} is not allowed")
+                    # Check for 'as' alias
+                    if ' as ' in import_stmt:
+                        module_name = import_stmt.split()[1]
+                        alias = import_stmt.split()[-1]
+
+                    # Ensure module is allowed
+                    if any(module_name.startswith(allowed) for allowed in ALLOWED_MODULES):
+                        module = importlib.import_module(module_name)
+                        exec_globals[alias] = module
+                        imported_modules[alias] = module
+
+                elif import_stmt.startswith('from '):
+                    # From import: from matplotlib import pyplot as plt
+                    parts = import_stmt.split()
+                    module_name = parts[1]
+                    imported_name = parts[3]
+                    alias = parts[-1] if len(parts) > 4 and parts[4] == 'as' else imported_name
+
+                    # Ensure module is allowed
+                    if any(module_name.startswith(allowed) for allowed in ALLOWED_MODULES):
+                        module = importlib.import_module(module_name)
+                        exec_globals[alias] = getattr(module, imported_name)
+                        imported_modules[alias] = getattr(module, imported_name)
+
             except ImportError as e:
                 # Log the import error but continue
                 print(f"Import warning: {e}")
@@ -159,25 +183,37 @@ def is_safe_code(code: str) -> Tuple[bool, str]:
     """
     Enhanced safety check for code execution
     """
-    # List of potentially dangerous patterns to block
+    # Allowed system-level imports and libraries
+    allowed_imports = [
+        'matplotlib', 'numpy', 'pandas', 'seaborn', 'plotly',
+        'scipy', 'sklearn', 'torch', 'tensorflow', 'keras'
+    ]
+
+    # Dangerous patterns to block
     unsafe_patterns = [
         r'open\(',  # File operations
         r'exec\(',  # Code execution
         r'eval\(',  # Expression evaluation
-        r'os\.',  # OS interactions
-        r'subprocess',  # Subprocess execution
-        r'__import__',  # Dynamic module importing
-        r'sys\.',  # System interactions
     ]
 
     # Check for unsafe patterns
     for pattern in unsafe_patterns:
         if re.search(pattern, code):
-            return False, f"Unsafe code pattern detected: {pattern}"
+            return False, "Unsafe code pattern detected"
+
+    # Check imported modules
+    imports = re.findall(r'^import\s+(\w+)', code, re.MULTILINE)
+    from_imports = re.findall(r'^from\s+(\w+)', code, re.MULTILINE)
+
+    disallowed_imports = [
+        imp for imp in set(imports + from_imports)
+        if imp not in allowed_imports and imp not in ['math', 're', 'random', 'time']
+    ]
+
+    if disallowed_imports:
+        return False, f"Disallowed imports detected: {', '.join(disallowed_imports)}"
 
     return True, "Code appears safe"
-
-
 def main():
     st.markdown('<h1 class="title">Python Playground</h1>', unsafe_allow_html=True)
 
