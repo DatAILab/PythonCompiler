@@ -238,46 +238,7 @@ def main():
     code = st.text_area(
         "Enter your Python code:",
         height=400,
-        help="Write your Python code here. Supports plotting with matplotlib and seaborn.",
-        value="""# Example: Creating different types of charts
-import matplotlib.pyplot as plt
-import seaborn as sns
-import numpy as np
-import pandas as pd
-
-# Line Plot
-plt.figure(figsize=(10, 4))
-x = np.linspace(0, 10, 100)
-plt.plot(x, np.sin(x), label='Sin Wave')
-plt.plot(x, np.cos(x), label='Cos Wave')
-plt.title('Trigonometric Functions')
-plt.xlabel('X-axis')
-plt.ylabel('Y-axis')
-plt.legend()
-
-# Scatter Plot
-plt.figure(figsize=(10, 4))
-np.random.seed(42)
-data = pd.DataFrame({
-    'x': np.random.randn(100),
-    'y': np.random.randn(100),
-    'category': np.random.choice(['A', 'B', 'C'], 100)
-})
-sns.scatterplot(data=data, x='x', y='y', hue='category')
-plt.title('Scatter Plot with Categories')
-
-# Bar Plot
-plt.figure(figsize=(10, 4))
-categories = ['Category A', 'Category B', 'Category C', 'Category D']
-values = [23, 45, 56, 78]
-plt.bar(categories, values)
-plt.title('Bar Chart')
-plt.xlabel('Categories')
-plt.ylabel('Values')
-plt.xticks(rotation=45)
-
-plt.tight_layout()
-"""
+        help="Write your Python code here. Supports plotting with matplotlib and seaborn."
     )
 
     # Run Code Button
