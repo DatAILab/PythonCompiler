@@ -6,6 +6,10 @@ import uuid
 from typing import List, Tuple, Dict
 import traceback
 import importlib
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import pandas as pd
 
 # Enhanced safety configuration
 ALLOWED_MODULES = [
@@ -25,8 +29,7 @@ ALLOWED_MODULES = [
     'pytz', 'emoji', 'pytest'
 ]
 
-st.set_page_config(page_title="Python Playground", page_icon="🐍")
-
+st.set_page_config(page_title="Python Playground with Charts", page_icon="📊")
 
 # Custom CSS for enhanced styling
 st.markdown("""
@@ -65,9 +68,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-def safe_execute_code(code: str) -> Tuple[bool, str]:
+
+def safe_execute_code(code: str) -> Tuple[bool, str, List[plt.Figure]]:
     """
-    Safely execute Python code with comprehensive output and error handling
+    Safely execute Python code with comprehensive output, error handling, and chart capture
     """
     # Capture standard input/output/error
     old_stdin = sys.stdin
@@ -81,6 +85,9 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
     sys.stdin = stdin_capture
     sys.stdout = stdout_capture
     sys.stderr = stderr_capture
+
+    # List to capture matplotlib figures
+    captured_figures = []
 
     try:
         # Create a comprehensive global namespace
@@ -100,7 +107,11 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
                 'max': max,
                 'min': min,
                 'sorted': sorted,
-            }
+            },
+            'plt': plt,
+            'sns': sns,
+            'np': np,
+            'pd': pd,
         }
 
         # Special handling for imports
@@ -156,17 +167,21 @@ def safe_execute_code(code: str) -> Tuple[bool, str]:
         # Execute the rest of the code
         exec('\n'.join(code_without_imports), exec_globals)
 
+        # Capture matplotlib figures
+        captured_figures = plt.get_fignums()
+        captured_figures = [plt.figure(num) for num in captured_figures]
+
         # Capture output
         stdout_output = stdout_capture.getvalue()
         stderr_output = stderr_capture.getvalue()
         output = stdout_output + stderr_output
 
-        return True, output.strip() if output.strip() else "Code executed successfully with no output."
+        return True, output.strip() if output.strip() else "Code executed successfully with no output.", captured_figures
 
     except Exception as e:
         # Capture full traceback
         error_traceback = traceback.format_exc()
-        return False, error_traceback
+        return False, error_traceback, []
 
     finally:
         # Restore original streams
@@ -214,14 +229,55 @@ def is_safe_code(code: str) -> Tuple[bool, str]:
         return False, f"Disallowed imports detected: {', '.join(disallowed_imports)}"
 
     return True, "Code appears safe"
+
+
 def main():
-    st.markdown('<h1 class="title">Python Playground</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="title">Python Playground with Charts</h1>', unsafe_allow_html=True)
 
     # Code input area with larger height and better styling
     code = st.text_area(
         "Enter your Python code:",
         height=400,
-        help="Write your Python code here. Supports most scientific and data libraries."
+        help="Write your Python code here. Supports plotting with matplotlib and seaborn.",
+        value="""# Example: Creating different types of charts
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import pandas as pd
+
+# Line Plot
+plt.figure(figsize=(10, 4))
+x = np.linspace(0, 10, 100)
+plt.plot(x, np.sin(x), label='Sin Wave')
+plt.plot(x, np.cos(x), label='Cos Wave')
+plt.title('Trigonometric Functions')
+plt.xlabel('X-axis')
+plt.ylabel('Y-axis')
+plt.legend()
+
+# Scatter Plot
+plt.figure(figsize=(10, 4))
+np.random.seed(42)
+data = pd.DataFrame({
+    'x': np.random.randn(100),
+    'y': np.random.randn(100),
+    'category': np.random.choice(['A', 'B', 'C'], 100)
+})
+sns.scatterplot(data=data, x='x', y='y', hue='category')
+plt.title('Scatter Plot with Categories')
+
+# Bar Plot
+plt.figure(figsize=(10, 4))
+categories = ['Category A', 'Category B', 'Category C', 'Category D']
+values = [23, 45, 56, 78]
+plt.bar(categories, values)
+plt.title('Bar Chart')
+plt.xlabel('Categories')
+plt.ylabel('Values')
+plt.xticks(rotation=45)
+
+plt.tight_layout()
+"""
     )
 
     # Run Code Button
@@ -233,13 +289,21 @@ def main():
             st.error(f"⚠️ {safety_message}")
         else:
             # Execute code
-            success, output = safe_execute_code(code)
+            success, output, figures = safe_execute_code(code)
 
             # Display output
             st.markdown('<div class="output-container">', unsafe_allow_html=True)
             if success:
                 st.success("✅ Code Execution Successful:")
-                st.code(output, language='python')
+
+                # Display text output if any
+                if output and output != "Code executed successfully with no output.":
+                    st.code(output, language='python')
+
+                # Display figures
+                for fig in figures:
+                    st.pyplot(fig)
+                    plt.close(fig)  # Close the figure to prevent memory leaks
             else:
                 st.error("❌ Code Execution Failed:")
                 st.markdown(f'<pre class="output-error">{output}</pre>', unsafe_allow_html=True)
