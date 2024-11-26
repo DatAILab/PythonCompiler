@@ -6,6 +6,9 @@ import uuid
 from typing import List, Tuple, Dict
 import traceback
 
+# Move set_page_config to the top
+st.set_page_config(page_title="Python IDE", page_icon="🐍")
+
 # Enhanced Custom CSS for Professional Design
 st.markdown("""
     <style>
@@ -206,9 +209,6 @@ def is_safe_code(code: str) -> bool:
 
 # Main Streamlit App
 def main():
-    # Set page title and icon
-    st.set_page_config(page_title="Python IDE", page_icon="🐍")
-
     # Title
     st.markdown('<h1 class="title">Python IDE & Compiler</h1>', unsafe_allow_html=True)
 
