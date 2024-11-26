@@ -98,49 +98,6 @@ st.markdown("""
 
 
 
-    # Builtins
-    builtins = [
-        'print', 'len', 'range', 'str', 'int', 'float', 'list', 'dict', 'set',
-        'tuple', 'enumerate', 'zip', 'map', 'filter', 'sum', 'max', 'min'
-    ]
-
-    # Highlighted code
-    highlighted = code
-
-    # Highlight comments (before other highlighting to avoid breaking string comments)
-    highlighted = re.sub(
-        r'(#.*?$)',
-        r'<span class="python-comment">\1</span>',
-        highlighted,
-        flags=re.MULTILINE
-    )
-
-    # Highlight strings
-    highlighted = re.sub(
-        r'(\'\'\'.*?\'\'\'|\"\"\".*?\"\"\"|\'.*?\'|\".*?\")',
-        r'<span class="python-string">\1</span>',
-        highlighted,
-        flags=re.DOTALL
-    )
-
-    # Highlight keywords
-    for keyword in keywords:
-        highlighted = re.sub(
-            r'\b' + re.escape(keyword) + r'\b',
-            f'<span class="python-keyword">{keyword}</span>',
-            highlighted
-        )
-
-    # Highlight builtins
-    for builtin in builtins:
-        highlighted = re.sub(
-            r'\b' + re.escape(builtin) + r'\b',
-            f'<span class="python-builtin">{builtin}</span>',
-            highlighted
-        )
-
-    return highlighted
-
 
 def safe_execute_code(code: str) -> Tuple[bool, str]:
     """
