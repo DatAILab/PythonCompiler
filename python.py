@@ -192,13 +192,7 @@ def main():
         help="Write your Python code here. Supported libraries: matplotlib, numpy, pandas, seaborn, etc."
     )
 
-    # Display highlighted code
-    if code:
-        st.markdown(f"""
-            <div class="code-editor">
-                {highlight_python(code)}
-            </div>
-        """, unsafe_allow_html=True)
+
 
     # Run Code Button
     if st.button("Run Code"):
