@@ -107,9 +107,6 @@ def safe_execute_code(code: str) -> Tuple[bool, str, List[plt.Figure]]:
                 'max': max,
                 'min': min,
                 'sorted': sorted,
-
-                # Custom input function that uses a predefined value
-                'input': lambda prompt=None: '5'  # Default input value
             },
             'plt': plt,
             'sns': sns,
