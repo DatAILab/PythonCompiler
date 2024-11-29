@@ -257,16 +257,49 @@ def main():
     if 'history_figures' not in st.session_state:
         st.session_state.history_figures = []
 
-    # Main layout with sidebar
-    col1, col2 = st.columns([3, 1])
+    # Main layout with console at the bottom
+    col1, col2 = st.columns([2, 1])
 
     with col1:
         st.markdown('<h1 class="title">Python Playground with Console</h1>', unsafe_allow_html=True)
 
-        # Console input and output
+        # Display code history and charts
+        for idx, (code, (success, output), figures) in reversed(list(enumerate(zip(
+                st.session_state.code_history,
+                st.session_state.history_outputs,
+                st.session_state.history_figures
+        )))):
+            # History item container
+            with st.container():
+                # Status indicator
+                status_emoji = "✅" if success else "❌"
+
+                # Truncate long code for display
+                display_code = code[:100] + "..." if len(code) > 100 else code
+
+                # History item with click to rerun
+                if st.button(f"{status_emoji} {display_code}", key=f"history_{idx}"):
+                    # Rerun the specific code
+                    rerun_code = st.session_state.code_history[idx]
+
+                    # Execute the code again
+                    is_safe, safety_message = is_safe_code(rerun_code)
+                    if is_safe:
+                        success, output, figures = safe_execute_code(rerun_code)
+
+                        # Display output
+                        st.markdown(f'<div class="console">{output}</div>', unsafe_allow_html=True)
+                        for fig in figures:
+                            st.pyplot(fig)
+                            plt.close(fig)
+                    else:
+                        st.markdown(f'<div class="console">⚠️ {safety_message}</div>', unsafe_allow_html=True)
+
+    # Console at the bottom
+    with st.container():
+        st.markdown('<hr>', unsafe_allow_html=True)
         console_input = st.text_area("Console", height=100, placeholder="Enter your code here...", key="console_input")
 
-        # Run Code Button
         if st.button("Run Code"):
             # First, check code safety
             is_safe, safety_message = is_safe_code(console_input)
@@ -288,52 +321,7 @@ def main():
                 # Display figures
                 for fig in figures:
                     st.pyplot(fig)
-                    plt.close(fig)  # Close the figure to prevent memory leaks
-
-    # Sidebar for code history
-    with col2:
-        st.header("Code History")
-
-        # Clear History Button
-        if st.button("🗑️ Clear History"):
-            st.session_state.code_history = []
-            st.session_state.history_outputs = []
-            st.session_state.history_figures = []
-            st.experimental_rerun()
-
-        # Display history items in reverse chronological order
-        for idx, (code, (success, output)) in reversed(list(enumerate(zip(
-                st.session_state.code_history,
-                st.session_state.history_outputs
-        )))):
-            # History item container
-            with st.container():
-                # Status indicator
-                status_emoji = "✅" if success else "❌"
-
-                # Truncate long code for display
-                display_code = code[:100] + "..." if len(code) > 100 else code
-
-                # History item with click to rerun
-                if st.button(f"{status_emoji} {display_code}", key=f"history_{idx}"):
-                    # Rerun the specific code
-                    rerun_code = st.session_state.code_history[idx]
-
-                    # Set the code in the console
-                    console_input = rerun_code
-
-                    # Execute the code again
-                    is_safe, safety_message = is_safe_code(rerun_code)
-                    if is_safe:
-                        success, output, figures = safe_execute_code(rerun_code)
-
-                        # Display output
-                        st.markdown(f'<div class="console">{output}</div>', unsafe_allow_html=True)
-                        for fig in figures:
-                            st.pyplot(fig)
-                            plt.close(fig)
-                    else:
-                        st.markdown(f'<div class="console">⚠️ {safety_message}</div>', unsafe_allow_html=True)
+                    plt.close(fig)
 
 
 if __name__ == "__main__":
