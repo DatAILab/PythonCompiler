@@ -2,10 +2,8 @@ import streamlit as st
 import sys
 import io
 import re
-import uuid
-from typing import List, Tuple, Dict
-import traceback
 import importlib
+import traceback
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -31,7 +29,7 @@ ALLOWED_MODULES = [
 
 st.set_page_config(page_title="Interactive Python Console", page_icon="📊", layout="wide")
 
-# Custom CSS for enhanced styling
+# Custom CSS (same as previous version)
 st.markdown("""
     <style>
     .stApp {
@@ -66,6 +64,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+
 def safe_execute_code(code: str, exec_globals: Dict) -> Tuple[bool, str, List[plt.Figure]]:
     """
     Safely execute Python code with comprehensive output, error handling, and chart capture
@@ -75,15 +74,54 @@ def safe_execute_code(code: str, exec_globals: Dict) -> Tuple[bool, str, List[pl
     stderr_capture = io.StringIO()
 
     # Redirect output
-    sys.stdout = stdout_capture
-    sys.stderr = stderr_capture
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = stdout_capture, stderr_capture
 
     # List to capture matplotlib figures
     captured_figures = []
 
     try:
+        # Separate import statements from other code
+        lines = code.split('\n')
+        import_statements = [line for line in lines if line.strip().startswith(('import ', 'from '))]
+        code_statements = [line for line in lines if not line.strip().startswith(('import ', 'from '))]
+
+        # Handle imports
+        for import_line in import_statements:
+            try:
+                # Check if import is allowed
+                module_name = import_line.split()[1] if import_line.startswith('import ') else import_line.split()[1]
+
+                if any(module_name.startswith(allowed) for allowed in ALLOWED_MODULES):
+                    # Execute import
+                    if ' as ' in import_line:
+                        # Handle import with alias
+                        parts = import_line.split()
+                        alias = parts[-1] if parts[0] == 'import' else parts[3]
+                        module = importlib.import_module(module_name)
+                        exec_globals[alias] = module
+                    elif import_line.startswith('from '):
+                        # Handle from import
+                        from_parts = import_line.split()
+                        module_name = from_parts[1]
+                        imported_name = from_parts[3]
+                        module = importlib.import_module(module_name)
+                        exec_globals[imported_name] = getattr(module, imported_name)
+                    else:
+                        # Simple import
+                        module = importlib.import_module(module_name)
+                        exec_globals[module_name] = module
+                else:
+                    raise ImportError(f"Module {module_name} is not in allowed modules")
+
+            except ImportError as e:
+                raise ImportError(f"Import error: {e}")
+
+        # Combine code statements
+        full_code = '\n'.join(code_statements)
+
         # Execute the code
-        exec(code, exec_globals)
+        exec(full_code, exec_globals)
 
         # Capture matplotlib figures
         captured_figures = plt.get_fignums()
@@ -103,11 +141,10 @@ def safe_execute_code(code: str, exec_globals: Dict) -> Tuple[bool, str, List[pl
 
     finally:
         # Restore original streams
-        sys.stdout = sys.__stdout__
-        sys.stderr = sys.__stderr__
-
+        sys.stdout, sys.stderr = old_stdout, old_stderr
         stdout_capture.close()
         stderr_capture.close()
+
 
 def is_safe_code(code: str) -> Tuple[bool, str]:
     """
@@ -128,6 +165,7 @@ def is_safe_code(code: str) -> Tuple[bool, str]:
             return False, f"Unsafe code pattern detected: {pattern}"
 
     return True, "Code appears safe"
+
 
 def main():
     st.markdown('<h1 class="title">Interactive Python Console</h1>', unsafe_allow_html=True)
@@ -160,8 +198,8 @@ def main():
     # Input container
     with st.form(key='code_input_form'):
         code_input = st.text_area("Enter Python Code", height=200, key="code_input",
-                                   placeholder="Type your Python code here...",
-                                   help="Write and run Python code. Previous code's variables are preserved.")
+                                  placeholder="Type your Python code here...",
+                                  help="Write and run Python code. Previous code's variables are preserved.")
         submit_button = st.form_submit_button("Run Code")
 
     # Execute code if submitted
@@ -189,6 +227,7 @@ def main():
             else:
                 # Display error
                 results_container.error(output)
+
 
 if __name__ == "__main__":
     main()
