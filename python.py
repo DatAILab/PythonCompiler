@@ -29,7 +29,7 @@ ALLOWED_MODULES = [
     'pytz', 'emoji', 'pytest'
 ]
 
-st.set_page_config(page_title="Python Playground with Console", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Interactive Python Console", page_icon="📊", layout="wide")
 
 # Custom CSS for enhanced styling
 st.markdown("""
@@ -46,60 +46,35 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-    .console {
-        background-color: #1e1e1e;
-        color: #d4d4d4;
-        font-family: 'Fira Code', monospace;
-        padding: 10px;
-        border-radius: 5px;
-        height: 200px;
-        overflow-y: auto;
-    }
-    .console-input {
-        background-color: #1e1e1e;
-        color: #d4d4d4;
-        font-family: 'Fira Code', monospace;
-        padding: 5px;
-        border-radius: 5px;
-        width: 100%;
-        border: none;
-        outline: none;
-    }
-    .stButton>button {
-        background-color: #3498db;
-        color: white;
-        border-radius: 6px;
-        transition: all 0.3s ease;
-    }
-    .history-item {
-        background-color: #e9ecef;
+    .console-output {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
         border-radius: 5px;
         padding: 10px;
         margin-bottom: 10px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
+        max-height: 300px;
+        overflow-y: auto;
     }
-    .history-item:hover {
-        background-color: #dee2e6;
+    .code-input {
+        font-family: 'Fira Code', monospace;
+        background-color: #f1f3f5;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        padding: 10px;
+        width: 100%;
     }
     </style>
 """, unsafe_allow_html=True)
 
-
-def safe_execute_code(code: str) -> Tuple[bool, str, List[plt.Figure]]:
+def safe_execute_code(code: str, exec_globals: Dict) -> Tuple[bool, str, List[plt.Figure]]:
     """
     Safely execute Python code with comprehensive output, error handling, and chart capture
     """
-    # Capture standard input/output/error
-    old_stdin = sys.stdin
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-
-    stdin_capture = io.StringIO()
+    # Capture standard output/error
     stdout_capture = io.StringIO()
     stderr_capture = io.StringIO()
 
-    sys.stdin = stdin_capture
+    # Redirect output
     sys.stdout = stdout_capture
     sys.stderr = stderr_capture
 
@@ -107,8 +82,59 @@ def safe_execute_code(code: str) -> Tuple[bool, str, List[plt.Figure]]:
     captured_figures = []
 
     try:
-        # Create a comprehensive global namespace
-        exec_globals = {
+        # Execute the code
+        exec(code, exec_globals)
+
+        # Capture matplotlib figures
+        captured_figures = plt.get_fignums()
+        captured_figures = [plt.figure(num) for num in captured_figures]
+
+        # Capture output
+        stdout_output = stdout_capture.getvalue()
+        stderr_output = stderr_capture.getvalue()
+        output = stdout_output + stderr_output
+
+        return True, output.strip() if output.strip() else "Code executed successfully with no output.", captured_figures
+
+    except Exception as e:
+        # Capture full traceback
+        error_traceback = traceback.format_exc()
+        return False, error_traceback, []
+
+    finally:
+        # Restore original streams
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+
+        stdout_capture.close()
+        stderr_capture.close()
+
+def is_safe_code(code: str) -> Tuple[bool, str]:
+    """
+    Enhanced safety check for code execution
+    """
+    # Dangerous patterns to block
+    unsafe_patterns = [
+        r'open\(',  # File operations
+        r'exec\(',  # Code execution
+        r'eval\(',  # Expression evaluation
+        r'import\s+os',  # Blocked OS module
+        r'import\s+sys',  # Blocked system module
+    ]
+
+    # Check for unsafe patterns
+    for pattern in unsafe_patterns:
+        if re.search(pattern, code):
+            return False, f"Unsafe code pattern detected: {pattern}"
+
+    return True, "Code appears safe"
+
+def main():
+    st.markdown('<h1 class="title">Interactive Python Console</h1>', unsafe_allow_html=True)
+
+    # Initialize or retrieve the persistent global namespace
+    if 'exec_globals' not in st.session_state:
+        st.session_state.exec_globals = {
             '__builtins__': {
                 'print': print,
                 'len': len,
@@ -131,198 +157,38 @@ def safe_execute_code(code: str) -> Tuple[bool, str, List[plt.Figure]]:
             'pd': pd,
         }
 
-        # Special handling for imports
-        import_statements = []
-        code_without_imports = []
-        imported_modules = {}
+    # Input container
+    with st.form(key='code_input_form'):
+        code_input = st.text_area("Enter Python Code", height=200, key="code_input",
+                                   placeholder="Type your Python code here...",
+                                   help="Write and run Python code. Previous code's variables are preserved.")
+        submit_button = st.form_submit_button("Run Code")
 
-        # Separate import statements from the rest of the code
-        for line in code.split('\n'):
-            stripped_line = line.strip()
-            if stripped_line.startswith('import ') or stripped_line.startswith('from '):
-                import_statements.append(line)
-            else:
-                code_without_imports.append(line)
+    # Execute code if submitted
+    if submit_button:
+        # Safety check
+        is_safe, safety_message = is_safe_code(code_input)
 
-        # Execute import statements
-        for import_stmt in import_statements:
-            try:
-                # Handle different import formats
-                if import_stmt.startswith('import '):
-                    # Simple import: import numpy as np
-                    module_name = import_stmt.split()[1]
-                    alias = module_name
+        if not is_safe:
+            st.error(f"⚠️ {safety_message}")
+        else:
+            # Execute code
+            success, output, figures = safe_execute_code(code_input, st.session_state.exec_globals)
 
-                    # Check for 'as' alias
-                    if ' as ' in import_stmt:
-                        module_name = import_stmt.split()[1]
-                        alias = import_stmt.split()[-1]
+            # Create a container for results at the top
+            results_container = st.empty()
 
-                    # Ensure module is allowed
-                    if any(module_name.startswith(allowed) for allowed in ALLOWED_MODULES):
-                        module = importlib.import_module(module_name)
-                        exec_globals[alias] = module
-                        imported_modules[alias] = module
-
-                elif import_stmt.startswith('from '):
-                    # From import: from matplotlib import pyplot as plt
-                    parts = import_stmt.split()
-                    module_name = parts[1]
-                    imported_name = parts[3]
-                    alias = parts[-1] if len(parts) > 4 and parts[4] == 'as' else imported_name
-
-                    # Ensure module is allowed
-                    if any(module_name.startswith(allowed) for allowed in ALLOWED_MODULES):
-                        module = importlib.import_module(module_name)
-                        exec_globals[alias] = getattr(module, imported_name)
-                        imported_modules[alias] = getattr(module, imported_name)
-
-            except ImportError as e:
-                # Log the import error but continue
-                print(f"Import warning: {e}")
-
-        # Execute the rest of the code
-        exec('\n'.join(code_without_imports), exec_globals)
-
-        # Capture matplotlib figures
-        captured_figures = plt.get_fignums()
-        captured_figures = [plt.figure(num) for num in captured_figures]
-
-        # Capture output
-        stdout_output = stdout_capture.getvalue()
-        stderr_output = stderr_capture.getvalue()
-        output = stdout_output + stderr_output
-
-        return True, output.strip() if output.strip() else "Code executed successfully with no output.", captured_figures
-
-    except Exception as e:
-        # Capture full traceback
-        error_traceback = traceback.format_exc()
-        return False, error_traceback, []
-
-    finally:
-        # Restore original streams
-        sys.stdin = old_stdin
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
-
-        stdin_capture.close()
-        stdout_capture.close()
-        stderr_capture.close()
-
-
-def is_safe_code(code: str) -> Tuple[bool, str]:
-    """
-    Enhanced safety check for code execution
-    """
-    # Allowed system-level imports and libraries
-    allowed_imports = [
-        'matplotlib', 'numpy', 'pandas', 'seaborn', 'plotly',
-        'scipy', 'sklearn', 'torch', 'tensorflow', 'keras'
-    ]
-
-    # Dangerous patterns to block
-    unsafe_patterns = [
-        r'open\(',  # File operations
-        r'exec\(',  # Code execution
-        r'eval\(',  # Expression evaluation
-    ]
-
-    # Check for unsafe patterns
-    for pattern in unsafe_patterns:
-        if re.search(pattern, code):
-            return False, "Unsafe code pattern detected"
-
-    # Check imported modules
-    imports = re.findall(r'^import\s+(\w+)', code, re.MULTILINE)
-    from_imports = re.findall(r'^from\s+(\w+)', code, re.MULTILINE)
-
-    disallowed_imports = [
-        imp for imp in set(imports + from_imports)
-        if imp not in allowed_imports and imp not in ['math', 're', 'random', 'time']
-    ]
-
-    if disallowed_imports:
-        return False, f"Disallowed imports detected: {', '.join(disallowed_imports)}"
-
-    return True, "Code appears safe"
-
-
-def main():
-    # Initialize session state for history
-    if 'code_history' not in st.session_state:
-        st.session_state.code_history = []
-    if 'history_outputs' not in st.session_state:
-        st.session_state.history_outputs = []
-    if 'history_figures' not in st.session_state:
-        st.session_state.history_figures = []
-
-    # Main layout with console at the bottom
-    col1, col2 = st.columns([2, 1])
-
-    with col1:
-        st.markdown('<h1 class="title">Python Playground with Console</h1>', unsafe_allow_html=True)
-
-        # Display code history and charts
-        for idx, (code, (success, output), figures) in reversed(list(enumerate(zip(
-                st.session_state.code_history,
-                st.session_state.history_outputs,
-                st.session_state.history_figures
-        )))):
-            # History item container
-            with st.container():
-                # Status indicator
-                status_emoji = "✅" if success else "❌"
-
-                # Truncate long code for display
-                display_code = code[:100] + "..." if len(code) > 100 else code
-
-                # History item with click to rerun
-                if st.button(f"{status_emoji} {display_code}", key=f"history_{idx}"):
-                    # Rerun the specific code
-                    rerun_code = st.session_state.code_history[idx]
-
-                    # Execute the code again
-                    is_safe, safety_message = is_safe_code(rerun_code)
-                    if is_safe:
-                        success, output, figures = safe_execute_code(rerun_code)
-
-                        # Display output
-                        st.markdown(f'<div class="console">{output}</div>', unsafe_allow_html=True)
-                        for fig in figures:
-                            st.pyplot(fig)
-                            plt.close(fig)
-                    else:
-                        st.markdown(f'<div class="console">⚠️ {safety_message}</div>', unsafe_allow_html=True)
-
-    # Console at the bottom
-    with st.container():
-        st.markdown('<hr>', unsafe_allow_html=True)
-        console_input = st.text_area("Console", height=100, placeholder="Enter your code here...", key="console_input")
-
-        if st.button("Run Code"):
-            # First, check code safety
-            is_safe, safety_message = is_safe_code(console_input)
-
-            if not is_safe:
-                st.markdown(f'<div class="console">⚠️ {safety_message}</div>', unsafe_allow_html=True)
-            else:
-                # Execute code
-                success, output, figures = safe_execute_code(console_input)
-
-                # Store in history
-                st.session_state.code_history.append(console_input)
-                st.session_state.history_outputs.append((success, output))
-                st.session_state.history_figures.append(figures)
-
+            if success:
                 # Display output
-                st.markdown(f'<div class="console">{output}</div>', unsafe_allow_html=True)
+                results_container.markdown(f'<div class="console-output">{output}</div>', unsafe_allow_html=True)
 
                 # Display figures
                 for fig in figures:
                     st.pyplot(fig)
                     plt.close(fig)
-
+            else:
+                # Display error
+                results_container.error(output)
 
 if __name__ == "__main__":
     main()
