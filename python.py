@@ -4,6 +4,7 @@ import io
 import re
 import importlib
 import traceback
+from typing import Dict, List, Tuple  # Added typing imports
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
