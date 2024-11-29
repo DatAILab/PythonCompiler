@@ -29,7 +29,7 @@ ALLOWED_MODULES = [
     'pytz', 'emoji', 'pytest'
 ]
 
-st.set_page_config(page_title="Python Playground with History", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Python Playground with Console", page_icon="📊", layout="wide")
 
 # Custom CSS for enhanced styling
 st.markdown("""
@@ -46,24 +46,30 @@ st.markdown("""
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-    .stTextArea textarea {
+    .console {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
         font-family: 'Fira Code', monospace;
-        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        height: 200px;
+        overflow-y: auto;
+    }
+    .console-input {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        font-family: 'Fira Code', monospace;
+        padding: 5px;
+        border-radius: 5px;
+        width: 100%;
+        border: none;
+        outline: none;
     }
     .stButton>button {
         background-color: #3498db;
         color: white;
         border-radius: 6px;
         transition: all 0.3s ease;
-    }
-    .output-container {
-        background-color: #f1f3f5;
-        border-radius: 8px;
-        padding: 15px;
-        margin-top: 15px;
-    }
-    .output-error {
-        color: #e74c3c;
     }
     .history-item {
         background-color: #e9ecef;
@@ -255,48 +261,34 @@ def main():
     col1, col2 = st.columns([3, 1])
 
     with col1:
-        st.markdown('<h1 class="title">Python Playground with History</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 class="title">Python Playground with Console</h1>', unsafe_allow_html=True)
 
-        # Code input area with larger height and better styling
-        code = st.text_area(
-            "Enter your Python code:",
-            height=400,
-            help="Write your Python code here. Supports plotting with matplotlib and seaborn."
-        )
+        # Console input and output
+        console_input = st.text_area("Console", height=100, placeholder="Enter your code here...", key="console_input")
 
         # Run Code Button
         if st.button("Run Code"):
             # First, check code safety
-            is_safe, safety_message = is_safe_code(code)
+            is_safe, safety_message = is_safe_code(console_input)
 
             if not is_safe:
-                st.error(f"⚠️ {safety_message}")
+                st.markdown(f'<div class="console">⚠️ {safety_message}</div>', unsafe_allow_html=True)
             else:
                 # Execute code
-                success, output, figures = safe_execute_code(code)
+                success, output, figures = safe_execute_code(console_input)
 
                 # Store in history
-                st.session_state.code_history.append(code)
+                st.session_state.code_history.append(console_input)
                 st.session_state.history_outputs.append((success, output))
                 st.session_state.history_figures.append(figures)
 
                 # Display output
-                st.markdown('<div class="output-container">', unsafe_allow_html=True)
-                if success:
-                    st.success("✅ Code Execution Successful:")
+                st.markdown(f'<div class="console">{output}</div>', unsafe_allow_html=True)
 
-                    # Display text output if any
-                    if output and output != "Code executed successfully with no output.":
-                        st.code(output, language='python')
-
-                    # Display figures
-                    for fig in figures:
-                        st.pyplot(fig)
-                        plt.close(fig)  # Close the figure to prevent memory leaks
-                else:
-                    st.error("❌ Code Execution Failed:")
-                    st.markdown(f'<pre class="output-error">{output}</pre>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                # Display figures
+                for fig in figures:
+                    st.pyplot(fig)
+                    plt.close(fig)  # Close the figure to prevent memory leaks
 
     # Sidebar for code history
     with col2:
@@ -327,8 +319,8 @@ def main():
                     # Rerun the specific code
                     rerun_code = st.session_state.code_history[idx]
 
-                    # Set the code in the text area
-                    code = rerun_code
+                    # Set the code in the console
+                    console_input = rerun_code
 
                     # Execute the code again
                     is_safe, safety_message = is_safe_code(rerun_code)
@@ -336,18 +328,12 @@ def main():
                         success, output, figures = safe_execute_code(rerun_code)
 
                         # Display output
-                        st.markdown('<div class="output-container">', unsafe_allow_html=True)
-                        if success:
-                            st.success("✅ Code Execution Successful:")
-                            if output and output != "Code executed successfully with no output.":
-                                st.code(output, language='python')
-                            for fig in figures:
-                                st.pyplot(fig)
-                                plt.close(fig)
-                        else:
-                            st.error("❌ Code Execution Failed:")
-                            st.markdown(f'<pre class="output-error">{output}</pre>', unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="console">{output}</div>', unsafe_allow_html=True)
+                        for fig in figures:
+                            st.pyplot(fig)
+                            plt.close(fig)
+                    else:
+                        st.markdown(f'<div class="console">⚠️ {safety_message}</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
