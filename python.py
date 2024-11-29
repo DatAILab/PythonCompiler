@@ -29,7 +29,7 @@ ALLOWED_MODULES = [
     'pytz', 'emoji', 'pytest'
 ]
 
-st.set_page_config(page_title="Python Playground with Charts", page_icon="📊")
+st.set_page_config(page_title="Python Playground with History", page_icon="📊", layout="wide")
 
 # Custom CSS for enhanced styling
 st.markdown("""
@@ -64,6 +64,17 @@ st.markdown("""
     }
     .output-error {
         color: #e74c3c;
+    }
+    .history-item {
+        background-color: #e9ecef;
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .history-item:hover {
+        background-color: #dee2e6;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -232,43 +243,111 @@ def is_safe_code(code: str) -> Tuple[bool, str]:
 
 
 def main():
-    st.markdown('<h1 class="title">Python Playground with Charts</h1>', unsafe_allow_html=True)
+    # Initialize session state for history
+    if 'code_history' not in st.session_state:
+        st.session_state.code_history = []
+    if 'history_outputs' not in st.session_state:
+        st.session_state.history_outputs = []
+    if 'history_figures' not in st.session_state:
+        st.session_state.history_figures = []
 
-    # Code input area with larger height and better styling
-    code = st.text_area(
-        "Enter your Python code:",
-        height=400,
-        help="Write your Python code here. Supports plotting with matplotlib and seaborn."
-    )
+    # Main layout with sidebar
+    col1, col2 = st.columns([3, 1])
 
-    # Run Code Button
-    if st.button("Run Code"):
-        # First, check code safety
-        is_safe, safety_message = is_safe_code(code)
+    with col1:
+        st.markdown('<h1 class="title">Python Playground with History</h1>', unsafe_allow_html=True)
 
-        if not is_safe:
-            st.error(f"⚠️ {safety_message}")
-        else:
-            # Execute code
-            success, output, figures = safe_execute_code(code)
+        # Code input area with larger height and better styling
+        code = st.text_area(
+            "Enter your Python code:",
+            height=400,
+            help="Write your Python code here. Supports plotting with matplotlib and seaborn."
+        )
 
-            # Display output
-            st.markdown('<div class="output-container">', unsafe_allow_html=True)
-            if success:
-                st.success("✅ Code Execution Successful:")
+        # Run Code Button
+        if st.button("Run Code"):
+            # First, check code safety
+            is_safe, safety_message = is_safe_code(code)
 
-                # Display text output if any
-                if output and output != "Code executed successfully with no output.":
-                    st.code(output, language='python')
-
-                # Display figures
-                for fig in figures:
-                    st.pyplot(fig)
-                    plt.close(fig)  # Close the figure to prevent memory leaks
+            if not is_safe:
+                st.error(f"⚠️ {safety_message}")
             else:
-                st.error("❌ Code Execution Failed:")
-                st.markdown(f'<pre class="output-error">{output}</pre>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+                # Execute code
+                success, output, figures = safe_execute_code(code)
+
+                # Store in history
+                st.session_state.code_history.append(code)
+                st.session_state.history_outputs.append((success, output))
+                st.session_state.history_figures.append(figures)
+
+                # Display output
+                st.markdown('<div class="output-container">', unsafe_allow_html=True)
+                if success:
+                    st.success("✅ Code Execution Successful:")
+
+                    # Display text output if any
+                    if output and output != "Code executed successfully with no output.":
+                        st.code(output, language='python')
+
+                    # Display figures
+                    for fig in figures:
+                        st.pyplot(fig)
+                        plt.close(fig)  # Close the figure to prevent memory leaks
+                else:
+                    st.error("❌ Code Execution Failed:")
+                    st.markdown(f'<pre class="output-error">{output}</pre>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    # Sidebar for code history
+    with col2:
+        st.header("Code History")
+
+        # Clear History Button
+        if st.button("🗑️ Clear History"):
+            st.session_state.code_history = []
+            st.session_state.history_outputs = []
+            st.session_state.history_figures = []
+            st.experimental_rerun()
+
+        # Display history items in reverse chronological order
+        for idx, (code, (success, output)) in reversed(list(enumerate(zip(
+                st.session_state.code_history,
+                st.session_state.history_outputs
+        )))):
+            # History item container
+            with st.container():
+                # Status indicator
+                status_emoji = "✅" if success else "❌"
+
+                # Truncate long code for display
+                display_code = code[:100] + "..." if len(code) > 100 else code
+
+                # History item with click to rerun
+                if st.button(f"{status_emoji} {display_code}", key=f"history_{idx}"):
+                    # Rerun the specific code
+                    rerun_code = st.session_state.code_history[idx]
+
+                    # Set the code in the text area
+                    code = rerun_code
+
+                    # Execute the code again
+                    is_safe, safety_message = is_safe_code(rerun_code)
+                    if is_safe:
+                        success, output, figures = safe_execute_code(rerun_code)
+
+                        # Display output
+                        st.markdown('<div class="output-container">', unsafe_allow_html=True)
+                        if success:
+                            st.success("✅ Code Execution Successful:")
+                            if output and output != "Code executed successfully with no output.":
+                                st.code(output, language='python')
+                            for fig in figures:
+                                st.pyplot(fig)
+                                plt.close(fig)
+                        else:
+                            st.error("❌ Code Execution Failed:")
+                            st.markdown(f'<pre class="output-error">{output}</pre>', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
