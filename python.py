@@ -10,12 +10,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
+import streamlit.components.v1 as components
 
 # Initialisation de l'état de session pour l'historique d'exécution et le stockage des variables
 if 'execution_history' not in st.session_state:
     st.session_state.execution_history = []
 if 'execution_state' not in st.session_state:
     st.session_state.execution_state = {}
+if 'code_input' not in st.session_state:
+    st.session_state.code_input = ""
 
 # Configuration et modules autorisés
 ALLOWED_MODULES = [
@@ -55,16 +58,6 @@ st.markdown("""
         font-weight: 700;
     }
     </style>
-    <script>
-    // JavaScript to handle Shift+Enter
-    function handleShiftEnter(event) {
-        if (event.shiftKey && event.key === 'Enter') {
-            event.preventDefault();
-            window.parent.postMessage({type: 'streamlit:formSubmit'}, '*');
-        }
-    }
-    document.addEventListener('keydown', handleShiftEnter);
-    </script>
 """, unsafe_allow_html=True)
 
 
@@ -159,18 +152,44 @@ def est_code_securise(code: str) -> Tuple[bool, str]:
 def main():
     st.markdown('<h1 class="title">Console Python de Data AI Lab</h1>', unsafe_allow_html=True)
 
+    # Ajouter un script JavaScript personnalisé
+    components.html("""
+    <script>
+    document.addEventListener('keydown', function(event) {
+        if (event.shiftKey && event.key === 'Enter') {
+            event.preventDefault();
+            window.parent.postMessage({'type': 'streamlit:executeCode'}, '*');
+        }
+    });
+    </script>
+    """, height=0)
+
     # Zone de saisie de code
-    nouveau_code = st.text_area("Nouvelle Cellule de Code :", key="code_input", height=150,
-                                help="Utilisez Shift+Entrée pour exécuter le code")
+    nouveau_code = st.text_area(
+        "Nouvelle Cellule de Code :",
+        value=st.session_state.code_input,
+        key="code_input_area",
+        height=150,
+        help="Utilisez Shift+Entrée pour exécuter le code"
+    )
 
-    # Utiliser le bouton d'exécution ou Shift+Entrée
-    execution_demandee = st.button("Exécuter") or st.session_state.get('shift_enter_pressed', False)
+    # Mettre à jour la valeur dans le state
+    st.session_state.code_input = nouveau_code
 
-    # Réinitialiser le flag Shift+Entrée
-    if st.session_state.get('shift_enter_pressed', False):
-        st.session_state.shift_enter_pressed = False
+    # Bouton d'exécution
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        execution_demandee = st.button("Exécuter")
 
-    if execution_demandee:
+    # Vérifier si un message d'exécution a été reçu
+    execute_from_js = st.session_state.get('execute_from_js', False)
+
+    # Réinitialiser le flag
+    if execute_from_js:
+        st.session_state.execute_from_js = False
+
+    # Conditions d'exécution
+    if execution_demandee or execute_from_js:
         if nouveau_code.strip():
             # Vérifier la sécurité du code
             est_securise, message_securite = est_code_securise(nouveau_code)
@@ -191,35 +210,9 @@ def main():
                     'success': succes
                 })
 
-                # Effacer la zone de texte
+                # Réinitialiser le code d'entrée
                 st.session_state.code_input = ""
-
-    # Ajouter un script JavaScript pour détecter Shift+Entrée
-    components_html = f"""
-    <script>
-    // Script pour détecter Shift+Entrée
-    document.addEventListener('keydown', function(event) {{
-        if (event.shiftKey && event.key === 'Enter') {{
-            event.preventDefault();
-            window.parent.postMessage({{'shiftEnterPressed': true}}, '*');
-        }}
-    }});
-    </script>
-    """
-    st.components.v1.html(components_html, height=0)
-
-    # Écouter les messages de Shift+Entrée
-    if st.components.v1.html:
-        script = f"""
-        <script>
-        window.addEventListener('message', function(event) {{
-            if (event.data.shiftEnterPressed) {{
-                window.parent.postMessage({{'type': 'streamlit:formSubmit'}}, '*');
-            }}
-        }});
-        </script>
-        """
-        st.components.v1.html(script, height=0)
+                st.experimental_rerun()
 
     # Afficher l'historique d'exécution dans l'ordre inverse
     for cellule in reversed(st.session_state.execution_history):
