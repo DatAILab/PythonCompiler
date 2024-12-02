@@ -116,16 +116,16 @@ def executer_code_en_securite(code: str, execution_state: dict) -> Tuple[bool, s
         # Personnaliser le message d'erreur
         if isinstance(e, NameError):
             # Pour les erreurs de variable non définie
-            return False, f"'{e.name}' is not defined", []
+            return False, f"'{e.name}' n'est pas défini", []
         elif isinstance(e, TypeError):
             # Pour les erreurs de type
             return False, str(e).split(':')[-1].strip(), []
         elif isinstance(e, SyntaxError):
             # Pour les erreurs de syntaxe
-            return False, f"Syntax error: {e.msg}", []
+            return False, f"Erreur de syntaxe: {e.msg}", []
         elif isinstance(e, ImportError):
             # Pour les erreurs d'importation
-            return False, f"Import error: {str(e)}", []
+            return False, f"Erreur d'importation: {str(e)}", []
         else:
             # Pour tout autre type d'erreur
             return False, str(e), []
