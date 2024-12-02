@@ -55,6 +55,16 @@ st.markdown("""
         font-weight: 700;
     }
     </style>
+    <script>
+    // JavaScript to handle Shift+Enter
+    function handleShiftEnter(event) {
+        if (event.shiftKey && event.key === 'Enter') {
+            event.preventDefault();
+            window.parent.postMessage({type: 'streamlit:formSubmit'}, '*');
+        }
+    }
+    document.addEventListener('keydown', handleShiftEnter);
+    </script>
 """, unsafe_allow_html=True)
 
 
@@ -150,10 +160,17 @@ def main():
     st.markdown('<h1 class="title">Console Python de Data AI Lab</h1>', unsafe_allow_html=True)
 
     # Zone de saisie de code
-    nouveau_code = st.text_area("Nouvelle Cellule de Code :", height=150)
+    nouveau_code = st.text_area("Nouvelle Cellule de Code :", key="code_input", height=150,
+                                help="Utilisez Shift+Entrée pour exécuter le code")
 
-    # Bouton d'exécution
-    if st.button("Exécuter"):
+    # Utiliser le bouton d'exécution ou Shift+Entrée
+    execution_demandee = st.button("Exécuter") or st.session_state.get('shift_enter_pressed', False)
+
+    # Réinitialiser le flag Shift+Entrée
+    if st.session_state.get('shift_enter_pressed', False):
+        st.session_state.shift_enter_pressed = False
+
+    if execution_demandee:
         if nouveau_code.strip():
             # Vérifier la sécurité du code
             est_securise, message_securite = est_code_securise(nouveau_code)
@@ -174,8 +191,35 @@ def main():
                     'success': succes
                 })
 
-        # Effacer la zone de texte après l'exécution
-        st.session_state.new_code_value = ""
+                # Effacer la zone de texte
+                st.session_state.code_input = ""
+
+    # Ajouter un script JavaScript pour détecter Shift+Entrée
+    components_html = f"""
+    <script>
+    // Script pour détecter Shift+Entrée
+    document.addEventListener('keydown', function(event) {{
+        if (event.shiftKey && event.key === 'Enter') {{
+            event.preventDefault();
+            window.parent.postMessage({{'shiftEnterPressed': true}}, '*');
+        }}
+    }});
+    </script>
+    """
+    st.components.v1.html(components_html, height=0)
+
+    # Écouter les messages de Shift+Entrée
+    if st.components.v1.html:
+        script = f"""
+        <script>
+        window.addEventListener('message', function(event) {{
+            if (event.data.shiftEnterPressed) {{
+                window.parent.postMessage({{'type': 'streamlit:formSubmit'}}, '*');
+            }}
+        }});
+        </script>
+        """
+        st.components.v1.html(script, height=0)
 
     # Afficher l'historique d'exécution dans l'ordre inverse
     for cellule in reversed(st.session_state.execution_history):
