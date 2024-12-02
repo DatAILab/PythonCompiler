@@ -27,32 +27,91 @@ ALLOWED_MODULES = [
     'requests', 'beautifulsoup4', 'nltk', 'pytz', 'emoji', 'pytest'
 ]
 
-st.set_page_config(page_title="Console Python de Data AI Lab", page_icon="🐍")
+# Configuration de la page Streamlit avec un thème amélioré
+st.set_page_config(
+    page_title="Console Python de Data AI Lab",
+    page_icon="🐍",
+    layout="wide"
+)
 
-# Style CSS personnalisé
+# Style CSS personnalisé avec un design moderne et élégant
 st.markdown("""
     <style>
+    /* Thème global */
     .stApp {
         background-color: #f4f6f9;
         font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
     }
-    .code-cell {
-        background-color: #f8f9fa;
-        border-left: 3px solid #3498db;
-        padding: 10px;
-        margin: 10px 0;
-        border-radius: 5px;
-    }
-    .output-cell {
-        background-color: #f1f3f5;
-        margin-left: 20px;
-        padding: 10px;
-        border-radius: 5px;
-    }
+
+    /* Titre principal */
     .title {
         color: #2c3e50;
         text-align: center;
         font-weight: 700;
+        margin-bottom: 20px;
+        background: linear-gradient(45deg, #3498db, #2ecc71);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 2.5rem;
+    }
+
+    /* Zone de code */
+    .stTextArea > div > div > textarea {
+        background-color: #f8f9fa;
+        border: 2px solid #3498db;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        font-family: 'Fira Code', monospace;
+    }
+
+    /* Bouton d'exécution */
+    .stButton > button {
+        background-color: #2ecc71;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .stButton > button:hover {
+        background-color: #27ae60;
+        transform: scale(1.05);
+    }
+
+    /* Cellules d'historique */
+    .stExpander {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 15px;
+        padding: 10px;
+    }
+
+    /* Code et sortie */
+    .stCodeBlock {
+        background-color: #f1f3f5;
+        border-left: 4px solid #3498db;
+        border-radius: 5px;
+        padding: 10px;
+        font-family: 'Fira Code', monospace;
+    }
+
+    /* Messages de succès et d'erreur */
+    .stSuccess, .stError {
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    .stSuccess {
+        background-color: rgba(46, 204, 113, 0.1);
+        border-left: 4px solid #2ecc71;
+    }
+
+    .stError {
+        background-color: rgba(231, 76, 60, 0.1);
+        border-left: 4px solid #e74c3c;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -162,13 +221,27 @@ def est_code_securise(code: str) -> Tuple[bool, str]:
 
 
 def main():
-    st.markdown('<h1 class="title">Console Python de Data AI Lab</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="title">🐍 Console Python de Data AI Lab</h1>', unsafe_allow_html=True)
 
-    # Zone de saisie de code
-    nouveau_code = st.text_area("Nouvelle Cellule de Code :", height=150)
+    # Créer deux colonnes pour la disposition
+    col1, col2 = st.columns([3, 1])
 
-    # Bouton d'exécution
-    if st.button("Exécuter"):
+    with col1:
+        # Zone de saisie de code avec un placeholder informatif
+        nouveau_code = st.text_area(
+            "Nouvelle Cellule de Code :",
+            height=300,
+            placeholder="Écrivez votre code Python ici. Exemple:\nprint('Hello, Data AI Lab!')\n\nImportez et utilisez des bibliothèques:\nimport numpy as np\nx = np.linspace(0, 10, 100)\nprint(x)"
+        )
+
+    with col2:
+        # Informations sur les modules disponibles
+        st.info("🔍 Modules Disponibles:")
+        modules_texte = ", ".join(sorted(ALLOWED_MODULES))
+        st.markdown(f"<small>{modules_texte}</small>", unsafe_allow_html=True)
+
+    # Bouton d'exécution avec une icône
+    if st.button("🚀 Exécuter le Code"):
         if nouveau_code.strip():
             # Vérifier la sécurité du code
             est_securise, message_securite = est_code_securise(nouveau_code)
@@ -189,21 +262,23 @@ def main():
                     'success': succes
                 })
 
-        # Effacer la zone de texte après l'exécution
-        st.session_state.new_code_value = ""
-
     # Afficher l'historique d'exécution dans l'ordre inverse
-    for cellule in reversed(st.session_state.execution_history):
-        with st.expander("Cellule de Code", expanded=True):
-            st.code(cellule['code'], language='python')
-            if cellule['success']:
-                st.success("Sortie :")
-                if cellule['output']:
-                    st.code(cellule['output'])
-                for fig in cellule['figures']:
-                    st.pyplot(fig)
-            else:
-                st.error(cellule['output'])
+    if st.session_state.execution_history:
+        st.subheader("📜 Historique d'Exécution")
+        for cellule in reversed(st.session_state.execution_history):
+            with st.expander("Cellule de Code", expanded=True):
+                st.code(cellule['code'], language='python')
+                if cellule['success']:
+                    st.success("✅ Sortie :")
+                    if cellule['output']:
+                        st.code(cellule['output'])
+                    for fig in cellule['figures']:
+                        st.pyplot(fig)
+                else:
+                    st.error("❌ Erreur :")
+                    st.error(cellule['output'])
+    else:
+        st.info("🔍 Aucun historique d'exécution. Commencez à coder!")
 
 
 if __name__ == "__main__":
