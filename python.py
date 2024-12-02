@@ -10,17 +10,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
-import streamlit.components.v1 as components
 
-# Initialisation de l'état de session pour l'historique d'exécution et le stockage des variables
+# Initialize session state for code execution history and variable storage
 if 'execution_history' not in st.session_state:
     st.session_state.execution_history = []
 if 'execution_state' not in st.session_state:
     st.session_state.execution_state = {}
-if 'code_input' not in st.session_state:
-    st.session_state.code_input = ""
 
-# Configuration et modules autorisés
+# Configuration and allowed modules remain the same as your original code
 ALLOWED_MODULES = [
     'math', 're', 'random', 'time', 'datetime', 'collections',
     'itertools', 'functools', 'statistics', 'typing', 'operator',
@@ -30,9 +27,9 @@ ALLOWED_MODULES = [
     'requests', 'beautifulsoup4', 'nltk', 'pytz', 'emoji', 'pytest'
 ]
 
-st.set_page_config(page_title="Console Python de Data AI Lab", page_icon="🐍")
+st.set_page_config(page_title="Python Console", page_icon="🐍")
 
-# Style CSS personnalisé
+# Custom CSS styling
 st.markdown("""
     <style>
     .stApp {
@@ -61,9 +58,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-def executer_code_en_securite(code: str, execution_state: dict) -> Tuple[bool, str, List[plt.Figure]]:
+def safe_execute_code(code: str, execution_state: dict) -> Tuple[bool, str, List[plt.Figure]]:
     """
-    Exécuter du code Python en toute sécurité avec persistance d'état
+    Safely execute Python code with state persistence
     """
     old_stdin, old_stdout, old_stderr = sys.stdin, sys.stdout, sys.stderr
     stdin_capture = io.StringIO()
@@ -71,10 +68,10 @@ def executer_code_en_securite(code: str, execution_state: dict) -> Tuple[bool, s
     stderr_capture = io.StringIO()
     sys.stdin, sys.stdout, sys.stderr = stdin_capture, stdout_capture, stderr_capture
 
-    figures_capturees = []
+    captured_figures = []
 
     try:
-        # Créer un environnement d'exécution avec l'état existant
+        # Create execution environment with existing state
         exec_globals = {
             '__builtins__': __builtins__,
             'plt': plt,
@@ -83,37 +80,37 @@ def executer_code_en_securite(code: str, execution_state: dict) -> Tuple[bool, s
             'pd': pd,
         }
 
-        # Ajouter l'état existant
+        # Add existing state
         exec_globals.update(execution_state)
 
-        # Gérer les imports et l'exécution du code
-        instructions_import = []
-        code_sans_imports = []
+        # Handle imports and code execution
+        import_statements = []
+        code_without_imports = []
 
-        for ligne in code.split('\n'):
-            if ligne.strip().startswith(('import ', 'from ')):
-                instructions_import.append(ligne)
+        for line in code.split('\n'):
+            if line.strip().startswith(('import ', 'from ')):
+                import_statements.append(line)
             else:
-                code_sans_imports.append(ligne)
+                code_without_imports.append(line)
 
-        # Exécuter les imports
-        for import_stmt in instructions_import:
+        # Execute imports
+        for import_stmt in import_statements:
             exec(import_stmt, exec_globals)
 
-        # Exécuter le code principal
-        exec('\n'.join(code_sans_imports), exec_globals)
+        # Execute main code
+        exec('\n'.join(code_without_imports), exec_globals)
 
-        # Mettre à jour l'état d'exécution avec les nouvelles variables
+        # Update execution state with new variables
         execution_state.update({
             k: v for k, v in exec_globals.items()
             if not k.startswith('__') and k not in ('plt', 'sns', 'np', 'pd')
         })
 
-        # Capturer les figures
-        figures_capturees = [plt.figure(num) for num in plt.get_fignums()]
+        # Capture figures
+        captured_figures = [plt.figure(num) for num in plt.get_fignums()]
 
-        sortie = stdout_capture.getvalue()
-        return True, sortie.strip() if sortie.strip() else "Code exécuté avec succès.", figures_capturees
+        output = stdout_capture.getvalue()
+        return True, output.strip() if output.strip() else "Code executed successfully.", captured_figures
 
     except Exception as e:
         return False, traceback.format_exc(), []
@@ -125,107 +122,70 @@ def executer_code_en_securite(code: str, execution_state: dict) -> Tuple[bool, s
         stderr_capture.close()
 
 
-def est_code_securise(code: str) -> Tuple[bool, str]:
+def is_safe_code(code: str) -> Tuple[bool, str]:
     """
-    Vérifier si le code est sûr à exécuter
+    Check if code is safe to execute
     """
-    modeles_non_securises = [r'open\(', r'exec\(', r'eval\(']
+    unsafe_patterns = [r'open\(', r'exec\(', r'eval\(']
 
-    for modele in modeles_non_securises:
-        if re.search(modele, code):
-            return False, "Modèle de code non sécurisé détecté"
+    for pattern in unsafe_patterns:
+        if re.search(pattern, code):
+            return False, "Unsafe code pattern detected"
 
     imports = re.findall(r'^import\s+(\w+)', code, re.MULTILINE)
-    imports_depuis = re.findall(r'^from\s+(\w+)', code, re.MULTILINE)
+    from_imports = re.findall(r'^from\s+(\w+)', code, re.MULTILINE)
 
-    imports_non_autorises = [
-        imp for imp in set(imports + imports_depuis)
-        if not any(imp.startswith(autorise) for autorise in ALLOWED_MODULES)
+    disallowed_imports = [
+        imp for imp in set(imports + from_imports)
+        if not any(imp.startswith(allowed) for allowed in ALLOWED_MODULES)
     ]
 
-    if imports_non_autorises:
-        return False, f"Imports non autorisés : {', '.join(imports_non_autorises)}"
+    if disallowed_imports:
+        return False, f"Disallowed imports: {', '.join(disallowed_imports)}"
 
-    return True, "Le code semble sûr"
+    return True, "Code appears safe"
 
 
 def main():
-    st.markdown('<h1 class="title">Console Python de Data AI Lab</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="title">Python Console</h1>', unsafe_allow_html=True)
 
-    # Ajouter un script JavaScript personnalisé
-    components.html("""
-    <script>
-    document.addEventListener('keydown', function(event) {
-        if (event.shiftKey && event.key === 'Enter') {
-            event.preventDefault();
-            window.parent.postMessage({'type': 'streamlit:executeCode'}, '*');
-        }
-    });
-    </script>
-    """, height=0)
+    # Code input area
+    new_code = st.text_area("New Code Cell:", height=150)
 
-    # Zone de saisie de code
-    nouveau_code = st.text_area(
-        "Nouvelle Cellule de Code :",
-        value=st.session_state.code_input,
-        key="code_input_area",
-        height=150,
-        help="Utilisez Shift+Entrée pour exécuter le code"
-    )
+    # Execute button
+    if st.button("Run"):
+        if new_code.strip():
+            # Check code safety
+            is_safe, safety_message = is_safe_code(new_code)
 
-    # Mettre à jour la valeur dans le state
-    st.session_state.code_input = nouveau_code
-
-    # Bouton d'exécution
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        execution_demandee = st.button("Exécuter")
-
-    # Vérifier si un message d'exécution a été reçu
-    execute_from_js = st.session_state.get('execute_from_js', False)
-
-    # Réinitialiser le flag
-    if execute_from_js:
-        st.session_state.execute_from_js = False
-
-    # Conditions d'exécution
-    if execution_demandee or execute_from_js:
-        if nouveau_code.strip():
-            # Vérifier la sécurité du code
-            est_securise, message_securite = est_code_securise(nouveau_code)
-
-            if not est_securise:
-                st.error(f"⚠️ {message_securite}")
+            if not is_safe:
+                st.error(f"⚠️ {safety_message}")
             else:
-                # Exécuter le code et stocker dans l'historique
-                succes, sortie, figures = executer_code_en_securite(
-                    nouveau_code,
+                # Execute code and store in history
+                success, output, figures = safe_execute_code(
+                    new_code,
                     st.session_state.execution_state
                 )
 
                 st.session_state.execution_history.append({
-                    'code': nouveau_code,
-                    'output': sortie,
+                    'code': new_code,
+                    'output': output,
                     'figures': figures,
-                    'success': succes
+                    'success': success
                 })
 
-                # Réinitialiser le code d'entrée
-                st.session_state.code_input = ""
-                st.rerun()
-
-    # Afficher l'historique d'exécution dans l'ordre inverse
-    for cellule in reversed(st.session_state.execution_history):
-        with st.expander("Cellule de Code", expanded=True):
-            st.code(cellule['code'], language='python')
-            if cellule['success']:
-                st.success("Sortie :")
-                if cellule['output']:
-                    st.code(cellule['output'])
-                for fig in cellule['figures']:
+    # Display execution history in reverse order
+    for cell in reversed(st.session_state.execution_history):
+        with st.expander("Code Cell", expanded=True):
+            st.code(cell['code'], language='python')
+            if cell['success']:
+                st.success("Output:")
+                if cell['output']:
+                    st.code(cell['output'])
+                for fig in cell['figures']:
                     st.pyplot(fig)
             else:
-                st.error(cellule['output'])
+                st.error(cell['output'])
 
 
 if __name__ == "__main__":
