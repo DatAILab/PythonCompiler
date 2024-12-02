@@ -232,10 +232,9 @@ def main():
         nouveau_code = st.text_area(
             "Nouvelle Cellule de Code :",
             height=300,
-            placeholder="Écrivez votre code Python ici. Exemple:\nprint('Hello, Data AI Lab!')\n\nImportez et utilisez des bibliothèques:\nimport numpy as np\nx = np.linspace(0, 10, 100)\nprint(x)"
         )
 
- 
+
 
     # Bouton d'exécution avec une icône
     if st.button("🚀 Exécuter le Code"):
