@@ -60,7 +60,7 @@ st.markdown("""
 
 def executer_code_en_securite(code: str, execution_state: dict) -> Tuple[bool, str, List[plt.Figure]]:
     """
-    Exécuter du code Python en toute sécurité avec persistance d'état
+    Exécuter du code Python en toute sécurité avec persistance d'état et messages d'erreur personnalisés
     """
     old_stdin, old_stdout, old_stderr = sys.stdin, sys.stdout, sys.stderr
     stdin_capture = io.StringIO()
@@ -113,7 +113,22 @@ def executer_code_en_securite(code: str, execution_state: dict) -> Tuple[bool, s
         return True, sortie.strip() if sortie.strip() else "Code exécuté avec succès.", figures_capturees
 
     except Exception as e:
-        return False, traceback.format_exc(), []
+        # Personnaliser le message d'erreur
+        if isinstance(e, NameError):
+            # Pour les erreurs de variable non définie
+            return False, f"'{e.name}' is not defined", []
+        elif isinstance(e, TypeError):
+            # Pour les erreurs de type
+            return False, str(e).split(':')[-1].strip(), []
+        elif isinstance(e, SyntaxError):
+            # Pour les erreurs de syntaxe
+            return False, f"Syntax error: {e.msg}", []
+        elif isinstance(e, ImportError):
+            # Pour les erreurs d'importation
+            return False, f"Import error: {str(e)}", []
+        else:
+            # Pour tout autre type d'erreur
+            return False, str(e), []
 
     finally:
         sys.stdin, sys.stdout, sys.stderr = old_stdin, old_stdout, old_stderr
