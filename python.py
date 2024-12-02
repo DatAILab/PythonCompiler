@@ -212,7 +212,7 @@ def main():
 
                 # Réinitialiser le code d'entrée
                 st.session_state.code_input = ""
-                st.experimental_rerun()
+                st.rerun()
 
     # Afficher l'historique d'exécution dans l'ordre inverse
     for cellule in reversed(st.session_state.execution_history):
