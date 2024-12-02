@@ -27,6 +27,7 @@ ALLOWED_MODULES = [
     'requests', 'beautifulsoup4', 'nltk', 'pytz', 'emoji', 'pytest'
 ]
 
+
 # Configuration de la page Streamlit avec un thème amélioré
 st.set_page_config(
     page_title="Console Python de Data AI Lab",
@@ -234,11 +235,7 @@ def main():
             placeholder="Écrivez votre code Python ici. Exemple:\nprint('Hello, Data AI Lab!')\n\nImportez et utilisez des bibliothèques:\nimport numpy as np\nx = np.linspace(0, 10, 100)\nprint(x)"
         )
 
-    with col2:
-        # Informations sur les modules disponibles
-        st.info("🔍 Modules Disponibles:")
-        modules_texte = ", ".join(sorted(ALLOWED_MODULES))
-        st.markdown(f"<small>{modules_texte}</small>", unsafe_allow_html=True)
+ 
 
     # Bouton d'exécution avec une icône
     if st.button("🚀 Exécuter le Code"):
